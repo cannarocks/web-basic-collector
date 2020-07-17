@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AppQuality Collector test
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      1.0
 // @description  Used to calculate time duration and number of visited pages.
 // @author       Luca Cannarozzo (@cannarocks)
 // @supportURL   https://github.com/cannarocks/web-basic-collector
@@ -70,8 +70,8 @@
     }
 
     /**
-         * Functions
-         */
+     * Functions
+     */
     function appq_tm_start()
     {
         appq_collector_record_start_time = Date.now();
@@ -87,8 +87,6 @@
         var current = Date.now();
         var elapsed_ms = current - getLocalStorage('appq_collector_record_start_time');
         var pages = JSON.parse(getLocalStorage("appq_tm_pages"));
-        var clicks = JSON.parse(getLocalStorage("appq_tm_clicks"));
-
 
         if(getLocalStorage('appq_collector_duration_partial'))
         {
@@ -108,19 +106,32 @@
         document.querySelector("#aq-fab").classList.remove('running');
 
         //Export CSV
-        let csvContent = "data:text/csv;charset=utf-8,Page,Visits,Total Elapsed\r\n";
+        let csvBase = "data:text/csv;charset=utf-8,\uFEFF"
+        let csvContent = "Page,Visits,Clicks,Total Elapsed\r\n";
         let totalTime = prettyPrintMs(elapsed_ms);
 
         //Add Pages visited
         if (Object.entries(pages).length)
         {
             for (const [key, value] of Object.entries(pages)) {
-                csvContent += key + "," + value + "," + totalTime + "\r\n";
+                var pageClicks = value.hasOwnProperty('clicks') ? value.clicks : 0;
+                csvContent += key + "," + value.views + "," + pageClicks + "," + totalTime + "\r\n";
             }
         }
 
+        console.log("CSV");
+        console.log(csvContent);
+
+        var encodedUriComponent = encodeURIComponent(csvContent);
         var encodedUri = encodeURI(csvContent);
-        window.open(encodedUri);
+
+
+        console.log("Encoded CSV");
+        console.log(encodedUri);
+        console.log(encodedUriComponent);
+        console.log(csvBase + encodedUriComponent);
+
+        window.open(csvBase + encodedUriComponent);
 
     }
 
@@ -238,7 +249,7 @@
 
         //Start
         document.querySelector("#appq_start_collector").addEventListener('click', function (e)
-                                                                         {
+        {
             e.preventDefault();
             if (!getLocalStorage('appq_collector_record_start_time'))
             {
@@ -288,21 +299,25 @@
             if (pages) {
                 _pages = JSON.parse(pages);
 
-                if (currentPage in _pages) {
-                    _pages[currentPage].clicks = parseInt(_pages[currentPage].clicks) + 1;
-                } else {
+                if (currentPage in _pages)
+                {
+                    if(_pages[currentPage].hasOwnProperty('clicks'))
+                    {
+                        _pages[currentPage].clicks = parseInt(_pages[currentPage].clicks) + 1;
+                    } else {
+
+                        _pages[currentPage].clicks = 1;
+                    }
+                }else {
                     _pages[currentPage] = {};
+                    _pages[currentPage].views = 1;
                     _pages[currentPage].clicks = 1;
                 }
 
-            } else {
-                _pages[currentPage] = {};
-                _pages[currentPage].clicks = 1;
+                setLocalStorage("appq_tm_pages", JSON.stringify(_pages));
             }
-
-            setLocalStorage("appq_tm_pages", JSON.stringify(_pages));
-
         }));
+
 
     }
 
